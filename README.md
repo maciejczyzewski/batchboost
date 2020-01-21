@@ -3,8 +3,13 @@ By [Maciej A. Czyzewski](https://github.com/maciejczyzewski)
 
 ## Introduction
 
+<b>Overview</b>
 <div align="center">
 	<img src="figures/figure-abstract.png" height="325">
+</div>
+
+<b>Results</b>
+<div>
 	<img src="figures/for-repository.png" height="325">
 </div>
 
