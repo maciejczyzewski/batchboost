@@ -107,7 +107,7 @@ The overlapping example of many samples (more than two) has not been considered
 in previous work. Probably because the imposition of 3 examples significantly affects the model leading to underfitting.
 %
 It turned out that in many tasks, linear mixing (like \emph{BC learning} or
-\emph{mixup}) leads to underfittng (figure \ref{fig:under}). Therefore, these methods are not applicable as universal tools.
+\emph{mixup}) leads to underfitting (figure \ref{fig:under}). Therefore, these methods are not applicable as universal tools.
 
 \textbf{Contribution} Our work shows that the imposition of many examples in
 subsequent iterations (which are slowly suppressed by new overlays) can improve efficiency, but most importantly it ensures stability of training and resistance to attacks.
@@ -155,7 +155,7 @@ thorough set of study experiments (Section \ref{sec:results}).
 
 Batch as input for training is a combination of two different mini-batches:
 \begin{itemize}
-\item (a) \emph{half-batch}: new samples from dataset, classical augumentation is possible here
+\item (a) \emph{half-batch}: new samples from dataset, classical augmentation is possible here
 \item (b) \emph{feed-batch} (mixup): samples mixed together (in-order presented in
 figure \ref{fig:abstract})
 \end{itemize}
@@ -187,7 +187,7 @@ a need to change the metric/method of error calculation.
 We were also thinking about using RL to pair samples. However, it turns out to
 be a more complicated problem thus we leave it here for further discussion.
 
-\subsection{Mixig Method}
+\subsection{Mixing Method}
 \label{sec:mixing}
 
 Selected two samples should be combined into one.
@@ -208,9 +208,12 @@ The good explanation is provided in BC learning research, that images and sound
 can be represented as waves. Mixing is an interpolation that human don't
 understand but machine could interpret.
 However, also a good explanation of this process is: that by training on
-artificial samples, we supplement the training data by between classes examples
+artificial samples, we supplement the training data by artificial examples between-classes
 (visually, it fills space between clusters in UMAP/t-SNE visualization).
-Thus it generalizes problem more by aggressive cluster separation during training.
+Thus, it generalizes problem more by aggressive cluster separation during
+training (the clusters are moving away from each other, because model learns
+artificial clusters made up by mixing).
+Mixing multiple classes allows for more accurate separation (higher dimensions), however model starts to depart from original problem (new distribution) losing accuracy on test dataset.
 
 The question is whether linear interpolation is good for all problems.
 Probably the best solution would be to use a GAN for this purpose (two inputs +
@@ -299,7 +302,7 @@ minimums. To solve this problem, we tune the optimizer parameters
 for \emph{mixup}, after that it could achieve a similar result to
 \emph{batchboost} (figure \ref{fig:over}).
 
-\subsection{Overfitting (compirason to \emph{mixup})}
+\subsection{Overfitting (comparison to \emph{mixup})}
 \label{sec:over}
 
 The most important observation of this section is that \emph{batchboost} retains
