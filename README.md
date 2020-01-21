@@ -4,7 +4,8 @@ By [Maciej A. Czyzewski](https://github.com/maciejczyzewski)
 ## Introduction
 
 <div align="center">
-	<img src="paper/figure-abstract.png" height="325">
+	<img src="figures/figure-abstract.png" height="325">
+	<img src="figures/for-repository.png" height="325">
 </div>
 
 This repository contains the implementation used for the results in
