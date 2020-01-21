@@ -1,0 +1,18 @@
+# project
+
+.DS_Store
+__pycache__
+*.pyc
+checkpoint
+results/
+data/
+
+# paper
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+
+# private
+plot.py
