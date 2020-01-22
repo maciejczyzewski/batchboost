@@ -331,12 +331,6 @@ def batchboost_data(criterion, x, y_1, y_2, outputs, alpha=1.0, use_cuda=True):
     return mixed_x, y_a, y_b, lam
 
 
-lam = 1
-inputs = None
-targets_a = None
-targets_b = None
-
-
 def train_batchboost(epoch):
     global inputs, targets_a, targets_b, lam
     print("BATCHBOOST")
@@ -347,6 +341,10 @@ def train_batchboost(epoch):
     correct = 0
     total = 0
 
+    lam = 1
+    inputs = None
+    targets_a = None
+    targets_b = None
     for batch_idx, (new_inputs, new_targets) in enumerate(trainloader):
         if use_cuda:
             new_inputs, new_targets = new_inputs.cuda(), new_targets.cuda()
