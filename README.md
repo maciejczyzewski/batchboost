@@ -3,6 +3,9 @@ By [Maciej A. Czyzewski](https://github.com/maciejczyzewski)
 
 ## Introduction
 
+This repository contains the implementation used for the results in
+our paper (https://arxiv.org/abs/2001.07627).
+
 <b>Overview</b>
 <div align="center">
 	<img src="figures/figure-abstract.png" height="325">
@@ -12,9 +15,6 @@ By [Maciej A. Czyzewski](https://github.com/maciejczyzewski)
 <div>
 	<img src="figures/for-repository.png" height="325">
 </div>
-
-This repository contains the implementation used for the results in
-our paper (?).
 
 ## Requirements and Installation
 * A computer running macOS or Linux
