@@ -12,12 +12,12 @@ examples from previous step in favor of pairing those that produce difficult one
 
 <div align="center">
 	<img src="figures/figure-abstract.png" width="50%">
-	<img src="figures/figure-feeding.png" width="50%">
+	<img src="figures/figure-feeding.png" width="49%">
 </div>
 
 ## Introduction
 
-*UPDATE 24/01/2020:* Thank you for your e-mails asking about _batchboost_. As promised, I will update the results soon and present comparisons with other solutions (paperswithcode.com). This is a draft and research needs to be continued to be complete work, if someone is interested in helping me, please contact.
+**UPDATE 24/01/2020:** Thank you for your e-mails asking about _batchboost_. As promised, I will update the results soon and present comparisons with other solutions (paperswithcode.com). This is a draft and research needs to be continued to be complete work, if someone is interested in helping me, please contact.
 
 ### Overview
 
@@ -29,14 +29,15 @@ examples from previous step in favor of pairing those that produce difficult one
 
 ### Results
 
-*[Coming]* comparison of _batchboost_ applied: to different architectures, to different problems (small datasets), for training GAN-s, with/without augmentation, with different parameters {window_normal, window_boost, factor} (hyperparameter tuning).
+**COMING:** comparison of _batchboost_ applied: to different architectures, to different problems (small datasets), for training GAN-s, with/without augmentation, with different parameters {window_normal, window_boost, factor} (hyperparameter tuning).
 
-The results will be updated and saved to `[results/](https://github.com/maciejczyzewski/batchboost/tree/master/results)`.
+The results will be updated and saved to [`results/`](https://github.com/maciejczyzewski/batchboost/tree/master/results).
 
 <b>Underfitting & Stabilizing Training</b>
 <div>
 	<img src="figures/for-repository-1.png" height="325">
 </div>
+
 _Figure 1:_ Evaluation on _CIFAR-10_, for _EfficientNet-b0_ and
 _SGD(weight-decay=10e-4, lr=0.1)_ (as recommended in the _mixup_ research), same
 parameters for each model. As a result, the models behave differently, although
@@ -46,6 +47,7 @@ they differ only in the method of constructing the mini-batch.
 <div>
 	<img src="figures/for-repository-2.png" height="325">
 </div>
+
 _Figure 2:_ _batchboost_ is a new state-of-the-art because it is a slightly better than _mixup_ (here _mixup_ has been tuned for best parameters, _batchboost_ uses configuration from _Figure 1_).
 
 ## Requirements and Installation
@@ -70,7 +72,7 @@ $ CUDA_VISIBLE_DEVICES=0 python3 train.py --decay=1e-4 --no-augment --seed=1 \
 
 ## Using
 
-File (`batchboost.py`)[https://github.com/maciejczyzewski/batchboost/tree/master/batchboost.py] should be portable, just copy into your path and write the following:
+File [`batchboost.py`](https://github.com/maciejczyzewski/batchboost/tree/master/batchboost.py) should be portable, just copy into your path and write the following:
 
 ```python3
 from batchboost import BatchBoost
@@ -106,11 +108,15 @@ BB = BatchBoost(
     factor=1 / 2,     # ratio between new information and feeded/mixed
     use_cuda=True,
 )
+
+...
 ```
 
 And slightly change your training loop:
 
 ```python3
+...
+
 for batch_idx, (new_inputs, new_targets) in enumerate(trainloader):
 	if use_cuda:
 		new_inputs, new_targets = new_inputs.cuda(), new_targets.cuda()
@@ -158,4 +164,4 @@ If you find _batchboost_ useful in your research, please consider citing:
 Implemented as fork of ["mixup-cifar10 / facebook"](https://github.com/facebookresearch/mixup-cifar10).
 This project is CC-BY-NC-licensed.
 
-<img src="figures/pp_logo.jpg" width="150px">
+<img src="figures/pp_logo.jpg" width="350px">
