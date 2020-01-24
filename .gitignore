@@ -3,7 +3,6 @@
 __pycache__
 *.pyc
 checkpoint
-results/
 data/
 
 # paper
@@ -14,5 +13,6 @@ data/
 *.blg
 
 # results
+results/*
 !results/decay=1e-4
 !results/decay=1e-5
