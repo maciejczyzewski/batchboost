@@ -19,6 +19,7 @@ import torch.nn as nn
 import torch.optim as optim
 import torchvision.transforms as transforms
 import torchvision.datasets as datasets
+
 """
 !pip install efficientnet_pytorch
 from google.colab import drive
@@ -31,13 +32,14 @@ import torch
 print('Torch', torch.__version__, 'CUDA', torch.version.cuda)
 print('Device:', torch.device('cuda:0'), torch.cuda.is_available())
 # --- START ---
-!python3 train.py --decay=1e-5 --no-augment --seed=1 --name=batchboost --model=efficientnet-b0 --epoch=30
+!python3 train.py --decay=1e-5 --no-augment --seed=1 \
+	--name=batchboost --model=efficientnet-b0 --epoch=30
 """
+
+import debug
 from utils import progress_bar
 
-if os.path.exists("debug.py"):
-    import debug
-
+# FIXME: rewrite it clean
 try:
     import models
 
@@ -50,10 +52,9 @@ except:
 
 parser = argparse.ArgumentParser(description="PyTorch CIFAR10 Training")
 parser.add_argument("--lr", default=0.1, type=float, help="learning rate")
-parser.add_argument("--resume",
-                    "-r",
-                    action="store_true",
-                    help="resume from checkpoint")
+parser.add_argument(
+    "--resume", "-r", action="store_true", help="resume from checkpoint"
+)
 parser.add_argument(
     "--model",
     default="ResNet18",
@@ -63,15 +64,21 @@ parser.add_argument(
 parser.add_argument("--name", default="0", type=str, help="name of run")
 parser.add_argument("--seed", default=0, type=int, help="random seed")
 parser.add_argument("--batch-size", default=128, type=int, help="batch size")
-parser.add_argument("--epoch",
-                    default=200,
-                    type=int,
-                    help="total epochs to run")
+parser.add_argument(
+    "--epoch", default=200, type=int, help="total epochs to run"
+)
 parser.add_argument(
     "--no-augment",
     dest="augment",
     action="store_false",
     help="use standard augmentation (default: True)",
+)
+parser.add_argument(
+    "--optimizer",
+    type=str,
+    default="lamb",
+    choices=["lamb", "adam"],
+    help="which optimizer to use",
 )
 parser.add_argument("--decay", default=1e-5, type=float, help="weight decay")
 parser.add_argument(
@@ -104,51 +111,57 @@ if args.debug:
     trainloader, testloader = debug.FashionMNIST_loaders(args)
 else:
     if args.augment:
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2023, 0.1994, 0.2010)),
-        ])
+        transform_train = transforms.Compose(
+            [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                ),
+            ]
+        )
     else:
-        transform_train = transforms.Compose([
+        transform_train = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(
+                    (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+                ),
+            ]
+        )
+
+    transform_test = transforms.Compose(
+        [
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2023, 0.1994, 0.2010)),
-        ])
+            transforms.Normalize(
+                (0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)
+            ),
+        ]
+    )
 
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.4914, 0.4822, 0.4465),
-                             (0.2023, 0.1994, 0.2010)),
-    ])
+    trainset = datasets.CIFAR10(
+        root="./data", train=True, download=True, transform=transform_train
+    )
+    trainloader = torch.utils.data.DataLoader(
+        trainset, batch_size=args.batch_size, shuffle=True, num_workers=8
+    )
 
-    trainset = datasets.CIFAR10(root="./data",
-                                train=True,
-                                download=True,
-                                transform=transform_train)
-    trainloader = torch.utils.data.DataLoader(trainset,
-                                              batch_size=args.batch_size,
-                                              shuffle=True,
-                                              num_workers=8)
-
-    testset = datasets.CIFAR10(root="./data",
-                               train=False,
-                               download=True,
-                               transform=transform_test)
-    testloader = torch.utils.data.DataLoader(testset,
-                                             batch_size=100,
-                                             shuffle=False,
-                                             num_workers=8)
+    testset = datasets.CIFAR10(
+        root="./data", train=False, download=True, transform=transform_test
+    )
+    testloader = torch.utils.data.DataLoader(
+        testset, batch_size=100, shuffle=False, num_workers=8
+    )
 
 # Model
 if args.resume:
     # Load checkpoint.
     print("==> Resuming from checkpoint..")
     assert os.path.isdir("checkpoint"), "Error: no checkpoint directory found!"
-    checkpoint = torch.load("./checkpoint/ckpt.t7" + args.name + "_" +
-                            str(args.seed))
+    checkpoint = torch.load(
+        "./checkpoint/ckpt.t7" + args.name + "_" + str(args.seed)
+    )
     net = checkpoint["net"]
     best_acc = checkpoint["acc"]
     start_epoch = checkpoint["epoch"] + 1
@@ -165,8 +178,15 @@ else:
 
 if not os.path.isdir("results"):
     os.mkdir("results")
-logname = ("results/log_" + net.__class__.__name__ + "_" + args.name + "_" +
-           str(args.seed) + ".csv")
+logname = (
+    "results/log_"
+    + net.__class__.__name__
+    + "_"
+    + args.name
+    + "_"
+    + str(args.seed)
+    + ".csv"
+)
 
 if use_cuda:
     net.cuda()
@@ -177,14 +197,9 @@ if use_cuda:
 
 criterion = nn.CrossEntropyLoss()
 
-# optimizer = optim.AdamW(net.parameters(),
-#                        lr=args.lr,
-#                        weight_decay=args.decay,
-#                        amsgrad=True)
-optimizer = optim.SGD(net.parameters(),
-                      lr=args.lr,
-                      momentum=0.9,
-                      weight_decay=args.decay)
+optimizer = optim.SGD(
+    net.parameters(), lr=args.lr, momentum=0.9, weight_decay=args.decay
+)
 
 ### MIXUP ######################################################################
 
@@ -198,24 +213,6 @@ def mixup_data(x, y, index_left, index_right, alpha=1.0, use_cuda=True):
 
     mixed_x = lam * x[index_left, :] + (1 - lam) * x[index_right, :]
     y_a, y_b = y[index_left], y[index_right]
-    return mixed_x, y_a, y_b, lam
-
-
-def __mixup_data_original(x, y, alpha=1.0, use_cuda=True):
-    """Returns mixed inputs, pairs of targets, and lambda"""
-    if alpha > 0:
-        lam = np.random.beta(alpha, alpha)
-    else:
-        lam = 1
-
-    batch_size = x.size()[0]
-    if use_cuda:
-        index = torch.randperm(batch_size).cuda()
-    else:
-        index = torch.randperm(batch_size)
-
-    mixed_x = lam * x + (1 - lam) * x[index, :]
-    y_a, y_b = y, y[index]
     return mixed_x, y_a, y_b, lam
 
 
@@ -241,20 +238,21 @@ def train_mixup(epoch):
         else:
             index = torch.randperm(batch_size)
 
-        inputs, targets_a, targets_b, lam = mixup_data(inputs, targets,
-                                                       range(batch_size),
-                                                       index, args.alpha,
-                                                       use_cuda)
-        inputs, targets_a, targets_b = map(Variable,
-                                           (inputs, targets_a, targets_b))
+        inputs, targets_a, targets_b, lam = mixup_data(
+            inputs, targets, range(batch_size), index, args.alpha, use_cuda
+        )
+        inputs, targets_a, targets_b = map(
+            Variable, (inputs, targets_a, targets_b)
+        )
         outputs = net(inputs)
         loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
         train_loss += loss.data
         _, predicted = torch.max(outputs.data, 1)
         total += inputs.size(0)
         correct += (
-            lam * predicted.eq(targets_a.data).cpu().sum().float() +
-            (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
+            lam * predicted.eq(targets_a.data).cpu().sum().float()
+            + (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float()
+        )
 
         optimizer.zero_grad()
         loss.backward()
@@ -264,7 +262,8 @@ def train_mixup(epoch):
         progress_bar(
             batch_idx,
             len(trainloader),
-            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)" % (
+            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)"
+            % (
                 train_loss / (batch_idx + 1),
                 reg_loss / (batch_idx + 1),
                 100.0 * correct / total,
@@ -281,54 +280,37 @@ def train_mixup(epoch):
 
 ### BATCHBOOST #################################################################
 
+from batchboost import BatchBoost
 
-def batchboost_data(criterion, x, y_1, y_2, outputs, alpha=1.0, use_cuda=True):
-    """Batchboost: reduction"""
 
-    batch_size = x.size()[0]
+def fn_error(outputs, targets):
+    logsoftmax = nn.LogSoftmax(dim=1)
+    return torch.sum(-outputs * logsoftmax(targets), dim=1)
 
-    # (1) normalize labels
-    y = (y_1 + y_2) / 2
 
-    # (2) calculate error
-    y_onehot = torch.zeros(batch_size, num_classes)
-    y_onehot[range(y_onehot.shape[0]), y] = 1
-    # FIXME: am I calculating this correctly?
-    #        what about softmax? / one-hot
-    if use_cuda:
-        err = torch.norm(outputs - y_onehot.cuda(), 2, dim=1).cuda()
-    else:
-        err = torch.norm(outputs - y_onehot, 2, dim=1)
-    """
-    if use_cuda:
-        err = torch.norm(
-            torch.softmax(outputs, dim=1) -
-            torch.softmax(y_onehot, dim=1).cuda(),
-            2,
-            dim=1,
-        ).cuda()
-    else:
-        err = torch.norm(
-            torch.softmax(outputs, dim=1) - torch.softmax(y_onehot, dim=1),
-            2,
-            dim=1,
-        )
-    """
+def fn_linearize(x, num_classes=10):
+    _x = torch.zeros(x.size(0), num_classes)
+    _x[range(x.size(0)), x] = 1
+    return _x
 
-    # (3) sort by error
-    _, index = torch.sort(err, dim=0, descending=True)
 
-    # (4) mixup using pairs (worst with best)
-    mixed_x, y_a, y_b, lam = mixup_data(
-        x,
-        y,
-        index_left=index[0:batch_size // 2],
-        index_right=index[batch_size // 2:],
-        alpha=alpha,
-        use_cuda=use_cuda,
-    )
+def fn_unlinearize(x):
+    _, _x = torch.max(x, 1)
+    return _x
 
-    return mixed_x, y_a, y_b, lam
+
+BatchBoost.fn_error = fn_error
+BatchBoost.fn_linearize = fn_linearize
+BatchBoost.fn_unlinearize = fn_unlinearize
+
+# FIXME: add arguments to command-line
+BB = BatchBoost(
+    alpha=args.alpha,
+    window_normal=0,
+    window_boost=10,
+    factor=1 / 2,
+    use_cuda=use_cuda,
+)
 
 
 def train_batchboost(epoch):
@@ -341,47 +323,30 @@ def train_batchboost(epoch):
     correct = 0
     total = 0
 
-    lam = 1
-    inputs = None
-    targets_a = None
-    targets_b = None
+    BB.clear()
     for batch_idx, (new_inputs, new_targets) in enumerate(trainloader):
         if use_cuda:
             new_inputs, new_targets = new_inputs.cuda(), new_targets.cuda()
 
-        # -----> (a) batch merge
-        if inputs is None:
-            inputs = new_inputs
-            targets_a = new_targets
-            targets_b = new_targets
+        # -----> (a) feed with new information
+        if not BB.feed(new_inputs, new_targets):
             continue
-        inputs = torch.cat([inputs, new_inputs], dim=0)
-        targets_a = torch.cat([targets_a, new_targets], dim=0)
-        targets_b = torch.cat([targets_b, new_targets], dim=0)
 
-        outputs = net(inputs)
-        # -----> (b) calculate loss with respect of mixup
-        loss = mixup_criterion(criterion, outputs, targets_a, targets_b, lam)
+        # -----> (b) apply concat: BB.inputs, BB.targets
+        outputs = net(BB.inputs)
+
+        # -----> (c) calculate: loss (mixup like style \lambda)
+        loss = BB.criterion(criterion, outputs)
 
         train_loss += loss.data
         _, predicted = torch.max(outputs.data, 1)
-        total += inputs.size(0)
-        correct += (
-            lam * predicted.eq(targets_a.data).cpu().sum().float() +
-            (1 - lam) * predicted.eq(targets_b.data).cpu().sum().float())
+        total += BB.inputs.size(0)  # -----> remember to use concat
 
-        # -----> (c) batch reduce
-        inputs, targets_a, targets_b, lam = batchboost_data(
-            criterion,
-            inputs,
-            targets_a,
-            targets_b,
-            outputs,
-            args.alpha,
-            use_cuda,
-        )
-        inputs, targets_a, targets_b = map(Variable,
-                                           (inputs, targets_a, targets_b))
+        # -----> (d) calculate: accuracy
+        correct += BB.correct(predicted)
+
+        # -----> (e) pairing & mixing
+        BB.mixing(criterion, outputs)
 
         optimizer.zero_grad()
         loss.backward()
@@ -391,7 +356,8 @@ def train_batchboost(epoch):
         progress_bar(
             batch_idx,
             len(trainloader),
-            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)" % (
+            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)"
+            % (
                 train_loss / (batch_idx + 1),
                 reg_loss / (batch_idx + 1),
                 100.0 * correct / total,
@@ -438,7 +404,8 @@ def train_baseline(epoch):
         progress_bar(
             batch_idx,
             len(trainloader),
-            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)" % (
+            "Loss: %.3f | Reg: %.5f | Acc: %.3f%% (%d/%d)"
+            % (
                 train_loss / (batch_idx + 1),
                 reg_loss / (batch_idx + 1),
                 100.0 * correct / total,
@@ -475,7 +442,8 @@ def test(epoch):
             progress_bar(
                 batch_idx,
                 len(testloader),
-                "Loss: %.3f | Acc: %.3f%% (%d/%d)" % (
+                "Loss: %.3f | Acc: %.3f%% (%d/%d)"
+                % (
                     test_loss / (batch_idx + 1),
                     100.0 * correct / total,
                     correct,
@@ -501,8 +469,7 @@ def checkpoint(acc, epoch):
     }
     if not os.path.isdir("checkpoint"):
         os.mkdir("checkpoint")
-    torch.save(state,
-               "./checkpoint/ckpt.t7" + args.name + "_" + str(args.seed))
+    torch.save(state, "./checkpoint/ckpt.t7" + args.name + "_" + str(args.seed))
 
 
 def adjust_learning_rate(optimizer, epoch):
@@ -519,14 +486,16 @@ def adjust_learning_rate(optimizer, epoch):
 if not os.path.exists(logname):
     with open(logname, "w") as logfile:
         logwriter = csv.writer(logfile, delimiter=",")
-        logwriter.writerow([
-            "epoch",
-            "train loss",
-            "reg loss",
-            "train acc",
-            "test loss",
-            "test acc",
-        ])
+        logwriter.writerow(
+            [
+                "epoch",
+                "train loss",
+                "reg loss",
+                "train acc",
+                "test loss",
+                "test acc",
+            ]
+        )
 
 if args.name == "batchboost":
     train_func = train_batchboost
@@ -542,4 +511,5 @@ for epoch in range(start_epoch, args.epoch):
     with open(logname, "a") as logfile:
         logwriter = csv.writer(logfile, delimiter=",")
         logwriter.writerow(
-            [epoch, train_loss, reg_loss, train_acc, test_loss, test_acc])
+            [epoch, train_loss, reg_loss, train_acc, test_loss, test_acc]
+        )

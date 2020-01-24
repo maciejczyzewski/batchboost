@@ -1,5 +1,4 @@
 # project
-
 .DS_Store
 __pycache__
 *.pyc
@@ -14,5 +13,6 @@ data/
 *.bbl
 *.blg
 
-# private
-plot.py
+# results
+!results/decay=1e-4
+!results/decay=1e-5

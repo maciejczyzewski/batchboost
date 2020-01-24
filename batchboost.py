@@ -1,87 +1,141 @@
 import torch
+import torch.nn as nn
 import numpy as np
 from torch.autograd import Variable
 
 
 class BatchBoost:
-    def __init__(self, num_classes=10, use_cuda=False):
+    """
+    batchboost: regularization for stabilizing training 
+                with resistance to underfitting & overfitting
+    Maciej A. Czyzewski
+    https://arxiv.org/abs/2001.07627
+    """
+    def __init__(
+            self,
+            alpha=1.0,
+            window_normal=0,
+            window_boost=10,
+            factor=1 / 3,
+            use_cuda=False,
+            debug=False,
+    ):
+        self.alpha = alpha
+        self.window_normal = window_normal
+        self.window_boost = window_boost
+        self.factor = factor
+        self.use_cuda = False  # FIXME: implementation
+        self.debug = debug
         self.clear()
-        self.use_cuda = False
-        self.num_classes = num_classes
+
+        if self.debug:
+            print(f"[BatchBoost] alpha={alpha} ratio={factor} \
+window_normal={window_normal} window_boost={window_boost}")
 
     def clear(self):
-        self.lam = 1
+        if self.debug:
+            print(f"[BatchBoost] resetting")
+        self.mixup_lambda = 1
         self.inputs = None
-        self.targets_a = None
-        self.targets_b = None
+        self.y1 = self.y2 = None
+        self.iter_normal = self.window_normal
+        self.iter_boost = self.window_boost
 
     @staticmethod
-    def mixup(x, y, index_left, index_right, alpha=1.0):
-        """Returns mixed inputs, pairs of targets, and lambda"""
-        if alpha > 0:
-            lam = np.random.beta(alpha, alpha)
-        else:
-            lam = 1
+    def mixup(x, y, index_left, index_right, mixup_lambda=1.0):
+        """Returns mixed inputs, pairs of targets, and lambda
+        https://arxiv.org/abs/1710.09412"""
+        mixed_x = (mixup_lambda * x[index_left, :] +
+                   (1 - mixup_lambda) * x[index_right, :])
+        # mixed_y = (mixup_lambda * y[index_left, :] +
+        #           (1 - mixup_lambda) * y[index_right, :])
+        # return mixed_x, mixed_y, mixup_lambda
+        y1, y2 = y[index_left], y[index_right]
+        return mixed_x, y1, y2
 
-        mixed_x = lam * x[index_left, :] + (1 - lam) * x[index_right, :]
-        y_a, y_b = y[index_left], y[index_right]
-        return mixed_x, y_a, y_b, lam
+    @staticmethod
+    def fn_error(outputs, targets):
+        logsoftmax = nn.LogSoftmax(dim=1)
+        return torch.sum(-outputs * logsoftmax(targets), dim=1)
 
-    def criterion(self, criterion, pred):
-        return self.lam * criterion(pred, self.targets_a) + (
-            1 - self.lam) * criterion(pred, self.targets_b)
+    @staticmethod
+    def fn_linearize(x, num_classes=10):
+        _x = torch.zeros(x.size(0), num_classes)
+        _x[range(x.size(0)), x] = 1
+        return _x
 
-    def _mixing(self, criterion, x, y_1, y_2, outputs, alpha=1.0):
-        """Batchboost: mixing"""
+    @staticmethod
+    def fn_unlinearize(x):
+        _, _x = torch.max(x, 1)
+        return _x
 
-        batch_size = x.size()[0]
+    def criterion(self, criterion, outputs):
+        _y1 = BatchBoost.fn_unlinearize(self.y1)
+        _y2 = BatchBoost.fn_unlinearize(self.y2)
+        return self.mixup_lambda * criterion(
+            outputs, _y1) + (1 - self.mixup_lambda) * criterion(outputs, _y2)
 
-        # (1) normalize labels
-        y = (y_1 + y_2) / 2
+    def correct(self, predicted):
+        _y1 = BatchBoost.fn_unlinearize(self.y1)
+        _y2 = BatchBoost.fn_unlinearize(self.y2)
+        return (
+            self.mixup_lambda * predicted.eq(_y1).cpu().sum().float() +
+            (1 - self.mixup_lambda) * predicted.eq(_y2).cpu().sum().float())
 
-        # (2) calculate error
-        y_onehot = torch.zeros(batch_size, self.num_classes)
-        y_onehot[range(y_onehot.shape[0]), y] = 1
-        # FIXME: am I calculating this correctly?
-        #        what about softmax? / one-hot
-        if self.use_cuda:
-            err = torch.norm(outputs - y_onehot.cuda(), 2, dim=1).cuda()
-        else:
-            err = torch.norm(outputs - y_onehot, 2, dim=1)
-
-        # (3) sort by error
-        _, index = torch.sort(err, dim=0, descending=True)
-
-        # (4) mixup using pairs (worst with best)
-        mixed_x, y_a, y_b, lam = BatchBoost.mixup(
-            x,
-            y,
-            index_left=index[0:batch_size // 2],
-            index_right=index[batch_size // 2:],
-            alpha=alpha,
+    def pairing(self, errvec):
+        batch_size = errvec.size()[0]
+        _, index = torch.sort(errvec, dim=0, descending=True)
+        return (
+            index[0:int(batch_size * self.factor)],
+            reversed(index[batch_size - int(batch_size * self.factor):]),
         )
 
-        return mixed_x, y_a, y_b, lam
+    def mixing(self, criterion, outputs):
+        if self.iter_boost + self.iter_normal == 0:
+            self.iter_normal = self.window_normal
+            self.iter_boost = self.window_boost
+        if self.iter_boost > 0:
+            if self.debug:
+                print("[BatchBoost]: half-batch + feed-batch")
+            errvec = BatchBoost.fn_error(outputs, self.targets)
+            index_left, index_right = self.pairing(errvec)
 
-    def mixing(self, criterion, outputs, alpha=1.0):
-        self.inputs, self.targets_a, self.targets_b, self.lam = self._mixing(
-            criterion,
-            self.inputs,
-            self.targets_a,
-            self.targets_b,
-            outputs,
-            alpha,
-        )
-        self.inputs, self.targets_a, self.targets_b = map(
-            Variable, (self.inputs, self.targets_a, self.targets_b))
+            if self.alpha > 0:
+                self.mixup_lambda = np.random.beta(self.alpha, self.alpha)
+            else:
+                self.mixup_lambda = 1
 
-    def feed(self, new_inputs, new_targets):
+            self.inputs, self.y1, self.y2 = BatchBoost.mixup(
+                self.inputs,
+                y=self.targets,
+                index_left=index_right,
+                index_right=index_left,
+                mixup_lambda=self.mixup_lambda,
+            )
+            self.iter_boost -= 1
+        elif self.iter_normal > 0:
+            if self.debug:
+                print("[BatchBoost] normal batch")
+            batch_size = self.inputs.size(0)
+            self.inputs = self.inputs[int(batch_size * self.factor):]
+            self.y1 = self.y1[int(batch_size * self.factor):]
+            self.y2 = self.y2[int(batch_size * self.factor):]
+            self.mixup_lambda = 1
+            self.iter_normal -= 1
+
+    def feed(self, new_inputs, _new_targets):
+        new_targets = Variable(BatchBoost.fn_linearize(_new_targets))
+        # no mixing (first iteration)
         if self.inputs is None:
-            self.inputs = new_inputs
-            self.targets_a = new_targets
-            self.targets_b = new_targets
+            self.inputs = Variable(new_inputs)
+            self.y1 = new_targets
+            self.y2 = new_targets
             return False
+        # concat
         self.inputs = torch.cat([self.inputs, new_inputs], dim=0)
-        self.targets_a = torch.cat([self.targets_a, new_targets], dim=0)
-        self.targets_b = torch.cat([self.targets_b, new_targets], dim=0)
+        self.y1 = torch.cat([self.y1, new_targets], dim=0)
+        self.y2 = torch.cat([self.y2, new_targets], dim=0)
+        # virtual targets
+        self.targets = (self.mixup_lambda * self.y1 +
+                        (1 - self.mixup_lambda) * self.y2)
         return True
