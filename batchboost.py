@@ -11,26 +11,29 @@ class BatchBoost:
     Maciej A. Czyzewski
     https://arxiv.org/abs/2001.07627
     """
+
     def __init__(
-            self,
-            alpha=1.0,
-            window_normal=0,
-            window_boost=10,
-            factor=1 / 3,
-            use_cuda=False,
-            debug=False,
+        self,
+        alpha=1.0,
+        window_normal=0,
+        window_boost=10,
+        factor=1 / 3,
+        use_cuda=False,
+        debug=False,
     ):
         self.alpha = alpha
         self.window_normal = window_normal
         self.window_boost = window_boost
         self.factor = factor
-        self.use_cuda = False  # FIXME: implementation
+        self.use_cuda = use_cuda
         self.debug = debug
         self.clear()
 
         if self.debug:
-            print(f"[BatchBoost] alpha={alpha} ratio={factor} \
-window_normal={window_normal} window_boost={window_boost}")
+            print(
+                f"[BatchBoost] alpha={alpha} ratio={factor} \
+window_normal={window_normal} window_boost={window_boost}"
+            )
 
     def clear(self):
         if self.debug:
@@ -45,8 +48,10 @@ window_normal={window_normal} window_boost={window_boost}")
     def mixup(x, y, index_left, index_right, mixup_lambda=1.0):
         """Returns mixed inputs, pairs of targets, and lambda
         https://arxiv.org/abs/1710.09412"""
-        mixed_x = (mixup_lambda * x[index_left, :] +
-                   (1 - mixup_lambda) * x[index_right, :])
+        mixed_x = (
+            mixup_lambda * x[index_left, :]
+            + (1 - mixup_lambda) * x[index_right, :]
+        )
         # mixed_y = (mixup_lambda * y[index_left, :] +
         #           (1 - mixup_lambda) * y[index_right, :])
         # return mixed_x, mixed_y, mixup_lambda
@@ -72,22 +77,24 @@ window_normal={window_normal} window_boost={window_boost}")
     def criterion(self, criterion, outputs):
         _y1 = BatchBoost.fn_unlinearize(self.y1)
         _y2 = BatchBoost.fn_unlinearize(self.y2)
-        return self.mixup_lambda * criterion(
-            outputs, _y1) + (1 - self.mixup_lambda) * criterion(outputs, _y2)
+        return self.mixup_lambda * criterion(outputs, _y1) + (
+            1 - self.mixup_lambda
+        ) * criterion(outputs, _y2)
 
     def correct(self, predicted):
         _y1 = BatchBoost.fn_unlinearize(self.y1)
         _y2 = BatchBoost.fn_unlinearize(self.y2)
         return (
-            self.mixup_lambda * predicted.eq(_y1).cpu().sum().float() +
-            (1 - self.mixup_lambda) * predicted.eq(_y2).cpu().sum().float())
+            self.mixup_lambda * predicted.eq(_y1).cpu().sum().float()
+            + (1 - self.mixup_lambda) * predicted.eq(_y2).cpu().sum().float()
+        )
 
     def pairing(self, errvec):
         batch_size = errvec.size()[0]
         _, index = torch.sort(errvec, dim=0, descending=True)
         return (
-            index[0:int(batch_size * self.factor)],
-            reversed(index[batch_size - int(batch_size * self.factor):]),
+            index[0 : int(batch_size * self.factor)],
+            reversed(index[batch_size - int(batch_size * self.factor) :]),
         )
 
     def mixing(self, criterion, outputs):
@@ -117,14 +124,16 @@ window_normal={window_normal} window_boost={window_boost}")
             if self.debug:
                 print("[BatchBoost] normal batch")
             batch_size = self.inputs.size(0)
-            self.inputs = self.inputs[int(batch_size * self.factor):]
-            self.y1 = self.y1[int(batch_size * self.factor):]
-            self.y2 = self.y2[int(batch_size * self.factor):]
+            self.inputs = self.inputs[int(batch_size * self.factor) :]
+            self.y1 = self.y1[int(batch_size * self.factor) :]
+            self.y2 = self.y2[int(batch_size * self.factor) :]
             self.mixup_lambda = 1
             self.iter_normal -= 1
 
     def feed(self, new_inputs, _new_targets):
         new_targets = Variable(BatchBoost.fn_linearize(_new_targets))
+        if self.use_cuda:
+            new_targets = new_targets.cuda()
         # no mixing (first iteration)
         if self.inputs is None:
             self.inputs = Variable(new_inputs)
@@ -136,6 +145,7 @@ window_normal={window_normal} window_boost={window_boost}")
         self.y1 = torch.cat([self.y1, new_targets], dim=0)
         self.y2 = torch.cat([self.y2, new_targets], dim=0)
         # virtual targets
-        self.targets = (self.mixup_lambda * self.y1 +
-                        (1 - self.mixup_lambda) * self.y2)
+        self.targets = (
+            self.mixup_lambda * self.y1 + (1 - self.mixup_lambda) * self.y2
+        )
         return True

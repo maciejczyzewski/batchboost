@@ -36,18 +36,17 @@ print('Device:', torch.device('cuda:0'), torch.cuda.is_available())
 	--name=batchboost --model=efficientnet-b0 --epoch=30
 """
 
+# FIXME: rewrite it clean
 import debug
 from utils import progress_bar
 
-# FIXME: rewrite it clean
 try:
     import models
 
     COLAB = False
 except:
+    # FIXME: detect environment?
     print("=== GOOGLE COLAB ENVIRONMENT ===")
-    from efficientnet_pytorch import EfficientNet
-
     COLAB = True
 
 parser = argparse.ArgumentParser(description="PyTorch CIFAR10 Training")
@@ -169,10 +168,12 @@ if args.resume:
     torch.set_rng_state(rng_state)
 else:
     print("==> Building model..")
-    if args.debug:
-        net = debug.ResNet100k()
-    elif COLAB:
+    if args.model.startswith("efficientnet"):
+        from efficientnet_pytorch import EfficientNet
+
         net = EfficientNet.from_pretrained(args.model, num_classes=num_classes)
+    elif args.debug:
+        net = debug.ResNet100k()
     else:
         net = models.__dict__[args.model]()
 
