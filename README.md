@@ -4,6 +4,8 @@ By [Maciej A. Czyzewski](https://github.com/maciejczyzewski)
 This repository contains the implementation used for the results in
 our paper (https://arxiv.org/abs/2001.07627).
 
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/batchboost-regularization-for-stabilizing/image-classification-on-cifar-10)](https://paperswithcode.com/sota/image-classification-on-cifar-10?p=batchboost-regularization-for-stabilizing)
+
 ---
 
 _Batchboost_ is a simple technique to accelerate model training by adaptively
