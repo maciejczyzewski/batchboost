@@ -8,9 +8,7 @@ our paper (https://arxiv.org/abs/2001.07627).
 
 ---
 
-_Batchboost_ is a simple technique to accelerate model training by adaptively
-feeding mini-batches with artificial samples which are created by mixing two
-examples from previous step in favor of pairing those that produce difficult one.
+_Batchboost_ is a simple technique to accelerate ML model training by adaptively feeding mini-batches with artificial samples which are created by mixing two examples from previous step - in favor of pairing those that produce the difficult one.
 
 <div align="center">
 	<img src="figures/figure-abstract.png" width="50%">
@@ -19,9 +17,21 @@ examples from previous step in favor of pairing those that produce difficult one
 
 ## Introduction
 
-**UPDATE 24/01/2020:** Thank you for your e-mails asking about _batchboost_. As promised, I will update the results soon and present comparisons with other solutions (paperswithcode.com). This is a draft and research needs to be continued to be complete work, if someone is interested in helping me, please contact.
+> **UPDATE 24/01/2020:** Thank you for your e-mails asking about _batchboost_. As promised, I will update the results soon and present comparisons with other solutions (paperswithcode.com). This is a draft and research needs to be continued to be complete work, if someone is interested in helping me, please contact.
 
 ### Overview
+
+In this research, we state the hypothesis that mixing many images together can
+be more effective than just two.  To make it efficient, we propose a new method of
+creating mini-batches, where each sample from dataset is propagated with
+subsequent iterations with less and less importance until the end of learning
+process.
+
+Batchboost pipeline has three stages:
+(a) _pairing_: method of selecting two samples from previous step.
+(b) _mixing_: method of creating a new artificial example from two selected samples.
+(c) _feeding_: constructing training mini-batch with created examples and new samples from dataset (concat with ratio γ).
+Note that sample from dataset propagates with subsequent iterations with less and less importance until the end of training.
 
 <div align="left">
 	<a href="https://arxiv.org/abs/2001.07627">
@@ -31,7 +41,7 @@ examples from previous step in favor of pairing those that produce difficult one
 
 ### Results
 
-**COMING:** comparison of _batchboost_ applied: to different architectures, to different problems (small datasets), for training GAN-s, with/without augmentation, with different parameters {window_normal, window_boost, factor} (hyperparameter tuning).
+> **COMING:** comparison of _batchboost_ applied: to different architectures, to different problems (small datasets), for training GAN-s, with/without augmentation, with different parameters {window_normal, window_boost, factor} (hyperparameter tuning).
 
 The results will be updated and saved to [`results/`](https://github.com/maciejczyzewski/batchboost/tree/master/results).
 
@@ -160,6 +170,9 @@ If you find _batchboost_ useful in your research, please consider citing:
     primaryClass={cs.LG}
 }
 ```
+
+_An interesting topic for further research and discussion are
+combination of batchboost and existing methods._
 
 ## License
 
